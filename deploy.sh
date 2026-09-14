@@ -96,6 +96,198 @@ require_option_value() {
     return 0
 }
 
+parse_cli() {
+    reset_cli_state
+
+    while (( $# > 0 )); do
+        case "$1" in
+            --env)
+                if [[ "$_CLI_SEEN_ENV" == true ]]; then
+                    cli_error "--env may only be provided once."
+                    return 2
+                fi
+
+                require_option_value "--env" "$#" "${2:-}" || return $?
+
+                CLI_ENV="$2"
+                _CLI_SEEN_ENV=true
+                shift 2
+                ;;
+
+            --ref)
+                if [[ "$_CLI_SEEN_REF" == true ]]; then
+                    cli_error "--ref may only be provided once."
+                    return 2
+                fi
+
+                require_option_value "--ref" "$#" "${2:-}" || return $?
+
+                CLI_REF="$2"
+                _CLI_SEEN_REF=true
+                shift 2
+                ;;
+
+            --dry-run)
+                if [[ "$_CLI_SEEN_DRY_RUN" == true ]]; then
+                    cli_error "--dry-run may only be provided once."
+                    return 2
+                fi
+
+                CLI_DRY_RUN=true
+                _CLI_SEEN_DRY_RUN=true
+                shift
+                ;;
+
+            --skip-healthcheck)
+                if [[ "$_CLI_SEEN_SKIP_HEALTHCHECK" == true ]]; then
+                    cli_error "--skip-healthcheck may only be provided once."
+                    return 2
+                fi
+
+                CLI_SKIP_HEALTHCHECK=true
+                _CLI_SEEN_SKIP_HEALTHCHECK=true
+                shift
+                ;;
+
+            --no-rollback)
+                if [[ "$_CLI_SEEN_NO_ROLLBACK" == true ]]; then
+                    cli_error "--no-rollback may only be provided once."
+                    return 2
+                fi
+
+                CLI_NO_ROLLBACK=true
+                _CLI_SEEN_NO_ROLLBACK=true
+                shift
+                ;;
+
+            --rollback)
+                if [[ "$_CLI_SEEN_ROLLBACK" == true ]]; then
+                    cli_error "--rollback may only be provided once."
+                    return 2
+                fi
+
+                _CLI_SEEN_ROLLBACK=true
+                shift
+                ;;
+
+            --status)
+                if [[ "$_CLI_SEEN_STATUS" == true ]]; then
+                    cli_error "--status may only be provided once."
+                    return 2
+                fi
+
+                _CLI_SEEN_STATUS=true
+                shift
+                ;;
+
+            -h|--help)
+                if [[ "$_CLI_SEEN_HELP" == true ]]; then
+                    cli_error "--help may only be provided once."
+                    return 2
+                fi
+
+                CLI_HELP=true
+                _CLI_SEEN_HELP=true
+                shift
+                ;;
+
+            --)
+                shift
+
+                if (( $# > 0 )); then
+                    cli_error "Unexpected positional argument: $1"
+                    return 2
+                fi
+
+                break
+                ;;
+
+            -*)
+                cli_error "Unknown option: $1"
+                return 2
+                ;;
+
+            *)
+                cli_error "Unexpected positional argument: $1"
+                return 2
+                ;;
+
+        esac
+
+    done
+
+    if [[ "$_CLI_SEEN_ROLLBACK" == true &&
+          "$_CLI_SEEN_STATUS" == true ]]; then
+        cli_error "--rollback and --status cannot be used together."
+        return 2
+    fi
+
+    if [[ "$_CLI_SEEN_ROLLBACK" == true ]]; then
+        CLI_OPERATION="rollback"
+    elif [[ "$_CLI_SEEN_STATUS" == true ]]; then
+        CLI_OPERATION="status"
+    fi
+
+    if [[ "$CLI_HELP" == true ]]; then
+        return 0
+    fi
+
+    if [[ -z "$CLI_ENV" ]]; then
+        cli_error "--env is required."
+        return 2
+    fi
+
+    case "$CLI_OPERATION" in
+        deploy)
+            if [[ -z "$CLI_REF" ]]; then
+                cli_error "--ref is required for deployment."
+                return 2
+            fi
+            ;;
+
+        rollback)
+            if [[ -n "$CLI_REF" ]]; then
+                cli_error "--ref cannot be used with --rollback."
+                return 2
+            fi
+
+            if [[ "$CLI_SKIP_HEALTHCHECK" == true ]]; then
+                cli_error "--skip-healthcheck cannot be used with --rollback."
+                return 2
+            fi
+
+            if [[ "$CLI_NO_ROLLBACK" == true ]]; then
+                cli_error "--no-rollback cannot be used with --rollback."
+                return 2
+            fi
+            ;;
+
+        status)
+            if [[ -n "$CLI_REF" ]]; then
+                cli_error "--ref cannot be used with --status."
+                return 2
+            fi
+
+            if [[ "$CLI_DRY_RUN" == true ]]; then
+                cli_error "--dry-run cannot be used with --status."
+                return 2
+            fi
+
+            if [[ "$CLI_SKIP_HEALTHCHECK" == true ]]; then
+                cli_error "--skip-healthcheck cannot be used with --status."
+                return 2
+            fi
+
+            if [[ "$CLI_NO_ROLLBACK" == true ]]; then
+                cli_error "--no-rollback cannot be used with --status."
+                return 2
+            fi
+            ;;
+    esac
+
+    return 0
+}
+
 main() {
     printf '%s\n' "safedeploy: CLI parser is not implemented yet." >&2
     return 1
