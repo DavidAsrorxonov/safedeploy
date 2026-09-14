@@ -1,0 +1,10 @@
+config/*.env
+!config/config.example.env
+
+logs/*
+!logs/.gitkeep
+
+.DS_Store
+
+sessions
+ARCHITECTURE.md
