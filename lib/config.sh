@@ -39,6 +39,7 @@ set_config_defaults() {
     HEALTHCHECK_CONNECT_TIMEOUT_SECONDS=2
     HEALTHCHECK_REQUEST_TIMEOUT_SECONDS=5
     HEALTHCHECK_DEADLINE_SECONDS=60
+    ROLLBACK_HEALTHCHECK_DEADLINE_SECONDS=60
 
     SSH_CONNECT_TIMEOUT_SECONDS=10
     SSH_SERVER_ALIVE_INTERVAL_SECONDS=15
@@ -108,6 +109,12 @@ load_configuration() {
     fi
 
     environment_config="${SAFEDEPLOY_CONFIG_DIR}/${environment_name}.env"
+
+    if [[ ! -f "$global_config" || ! -r "$global_config" ]]; then
+        config_error \
+        "Global configuration is missing or unreadable: ${global_config}"
+        return 2
+    fi
 
     if [[ ! -f "$environment_config" || ! -r "$environment_config" ]]; then
         config_error \
