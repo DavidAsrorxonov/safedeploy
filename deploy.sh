@@ -289,7 +289,22 @@ parse_cli() {
 }
 
 main() {
-    printf '%s\n' "safedeploy: CLI parser is not implemented yet." >&2
+    local parse_status=0
+
+    parse_cli "$@" || parse_status=$?
+
+    if (( parse_status != 0 )); then
+        return "$parse_status"
+    fi
+
+    if [[ "$CLI_HELP" == true ]]; then
+        usage
+        return 0 
+    fi 
+
+    printf 'safedeploy: %s execution is not done yet.\n' \
+        "$CLI_OPERATION" >&2
+
     return 1
 }
 
