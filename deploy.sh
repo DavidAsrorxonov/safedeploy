@@ -26,6 +26,9 @@ readonly SAFEDEPLOY_ROOT
 readonly SAFEDEPLOY_LIB_DIR="${SAFEDEPLOY_ROOT}/lib"
 readonly SAFEDEPLOY_CONFIG_DIR="${SAFEDEPLOY_ROOT}/config"
 
+# shellcheck source=lib/config.sh
+source "${SAFEDEPLOY_LIB_DIR}/config.sh"
+
 usage() {
     cat <<'EOF'
 Usage:
@@ -290,6 +293,7 @@ parse_cli() {
 
 main() {
     local parse_status=0
+    local config_status=0
 
     parse_cli "$@" || parse_status=$?
 
@@ -302,8 +306,15 @@ main() {
         return 0 
     fi 
 
-    printf 'safedeploy: %s execution is not done yet.\n' \
-        "$CLI_OPERATION" >&2
+    load_configuration "$CLI_ENV" || config_status=$?
+
+    if (( config_status != 0 )); then
+        return "$config_status"
+    fi
+
+    printf 'safedeploy: %s configuration loaded for environment %s; execution is not implemented yet.\n' \
+        "$CLI_OPERATION" \
+        "$CONFIG_ENVIRONMENT" >&2
 
     return 1
 }

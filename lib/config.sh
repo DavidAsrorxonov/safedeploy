@@ -9,8 +9,9 @@ config_error() {
 
 is_safe_environment_selector() {
     local selector="$1"
-
-    LC_ALL=C [[ "$selector" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]*$ ]]
+    local LC_ALL=C
+    
+    [[ "$selector" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]*$ ]]
 }
 
 set_config_defaults() {
@@ -92,4 +93,37 @@ apply_cli_config_overrides() {
     if [[ "$no_rollback_override" == true ]]; then
         AUTO_ROLLBACK=false
     fi
+}
+
+load_configuration() {
+    local environment_name="$1"
+    local global_config="${SAFEDEPLOY_ROOT}/deploy.conf"
+    local environment_config=""
+    local no_rollback_override="${CLI_NO_ROLLBACK:-false}"
+
+    if ! is_safe_environment_selector "$environment_name"; then
+        config_error \
+            "Invalid environment name: '${environment_name}'. Use letters, numbers, underscores and hyphens only."
+        return 2
+    fi
+
+    environment_config="${SAFEDEPLOY_CONFIG_DIR}/${environment_name}.env"
+
+    if [[ ! -f "$environment_config" || ! -r "$environment_config" ]]; then
+        config_error \
+            "Environment configuration is missing or unreadable: ${environment_config}"
+        return 2
+    fi
+
+    set_config_defaults
+
+    source_config_file "$global_config" || return $?
+    source_config_file "$environment_config" || return $?
+
+    apply_cli_config_overrides "$no_rollback_override"
+
+    CONFIG_ENVIRONMENT="$environment_name"
+    CONFIG_FILE="$environment_config"
+
+    return 0
 }
