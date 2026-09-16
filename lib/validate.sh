@@ -126,6 +126,11 @@ validate_remote_path() {
         return 2
     fi
 
+    if [[ "$REMOTE_PATH" != /* ]]; then
+        validation_error "REMOTE_PATH must be an absolute path."
+        return 2
+    fi
+
     if [[ "$REMOTE_PATH" == "/" ]]; then
         validation_error "REMOTE_PATH must not be the filesystem root."
         return 2
@@ -195,7 +200,7 @@ validate_optional_webhook_url() {
         return 0
     fi
 
-    if contains_con "$SLACK_WEBHOOK_URL" ||
+    if contains_control_character "$SLACK_WEBHOOK_URL" ||
         contains_whitespace "$SLACK_WEBHOOK_URL"; then
             validation_error \
                 "SLACK_WEBHOOK_URL must not contain whitespace or control characters."
