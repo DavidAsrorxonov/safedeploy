@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-validate_error() {
+validation_error() {
     local message="$1"
 
     printf 'Validation error: %s\n' "$message" >&2
