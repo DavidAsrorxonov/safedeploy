@@ -28,6 +28,7 @@ readonly SAFEDEPLOY_CONFIG_DIR="${SAFEDEPLOY_ROOT}/config"
 
 # shellcheck source=lib/config.sh
 source "${SAFEDEPLOY_LIB_DIR}/config.sh"
+source "${SAFEDEPLOY_LIB_DIR}/validate.sh"
 
 usage() {
     cat <<'EOF'
@@ -294,6 +295,7 @@ parse_cli() {
 main() {
     local parse_status=0
     local config_status=0
+    local validation_status=0
 
     parse_cli "$@" || parse_status=$?
 
@@ -310,6 +312,14 @@ main() {
 
     if (( config_status != 0 )); then
         return "$config_status"
+    fi
+
+    validate_configuration \
+        "$CLI_OPERATION" \
+        "$CLI_REF" || validation_status=$?
+
+    if (( validation_status != 0 )); then
+        return "$validation_status"
     fi
 
     printf 'safedeploy: %s configuration loaded for environment %s; execution is not implemented yet.\n' \
