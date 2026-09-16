@@ -322,7 +322,7 @@ main() {
         return "$validation_status"
     fi
 
-    printf 'safedeploy: %s configuration loaded for environment %s; execution is not implemented yet.\n' \
+    printf 'safedeploy: %s configuration validated for environment %s; execution is not implemented yet.\n' \
         "$CLI_OPERATION" \
         "$CONFIG_ENVIRONMENT" >&2
 
