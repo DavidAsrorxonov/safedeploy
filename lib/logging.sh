@@ -98,7 +98,6 @@ sanitize_log_message() {
 
     message="${message//$'\r'/\\r}"
 
-    message="${message//$'\r'/\\r}"
     message="${message//$'\n'/\\n}"
     message="${message//$'\t'/\\t}"
        
