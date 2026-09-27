@@ -28,8 +28,15 @@ readonly SAFEDEPLOY_CONFIG_DIR="${SAFEDEPLOY_ROOT}/config"
 
 # shellcheck source=lib/config.sh
 source "${SAFEDEPLOY_LIB_DIR}/config.sh"
+
+# shellcheck source=lib/validate.sh
 source "${SAFEDEPLOY_LIB_DIR}/validate.sh"
+
+# shellcheck source=lib/logging.sh
 source "${SAFEDEPLOY_LIB_DIR}/logging.sh"
+
+# shellcheck source=lib/ssh.sh
+source "${SAFEDEPLOY_LIB_DIR}/ssh.sh"
 
 usage() {
     cat <<'EOF'
@@ -298,6 +305,8 @@ main() {
     local config_status=0
     local validation_status=0
     local logging_status=0
+    local ssh_init_status=0
+    local ssh_check_status=0
 
     parse_cli "$@" || parse_status=$?
 
@@ -337,6 +346,39 @@ main() {
         "success" \
         0 \
         "Configuration loaded and validated."
+
+    initialize_ssh || ssh_init_status=$?
+
+    if (( ssh_init_status != 0 )); then
+        log_event \
+            "ERROR" \
+            "$CLI_OPERATION" \
+            "ssh-initialization" \
+            "failed" \
+            "$ssh_init_status" \
+            "Unable to initialize SSH transport." ||
+            true
+        
+        return 1
+    fi
+
+    ssh_check_connectivity || ssh_check_status=$?
+
+    if ! cleanup_ssh; then
+        log_event \
+            "WARN" \
+            "$CLI_OPERATION" \
+            "ssh-cleanup" \
+            "failed" \
+            1 \
+            "Unable to remove every local SSH control artifact." ||
+            true
+    fi
+   
+    if (( ssh_check_status != 0 )); then
+        return 1
+    fi
+
 
     log_event \
         "WARN" \
