@@ -345,7 +345,8 @@ main() {
         "validation" \
         "success" \
         0 \
-        "Configuration loaded and validated."
+        "Configuration loaded and validated." ||
+        return 1
 
     initialize_ssh || ssh_init_status=$?
 
@@ -386,7 +387,8 @@ main() {
         "dispatch" \
         "not_implemented" \
         1 \
-        "${CLI_OPERATION} execution is not implemented yet."
+        "${CLI_OPERATION} execution is not implemented yet." ||
+        return 1
 
     return 1
 }
