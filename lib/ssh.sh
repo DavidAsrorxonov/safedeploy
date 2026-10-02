@@ -201,22 +201,43 @@ cleanup_ssh() {
     return "$failed"
 }
 
-ssh_run_script() {
-    local script_path="$1"
+ssh_run_script_bundle() {
+    local script_count="${1:-}"
+    local script_index=0
+    local script_path=""
     local encoded_argument=""
     local remote_command="bash -s --"
     local pipeline_status=0
+    local -a script_paths=()
     local -a encoded_arguments=()
+
+    if [[ ! "$script_count" =~ ^[1-9][0-9]*$ ]]; then
+        ssh_error "A positive remote script count is required."
+        return 1
+    fi
 
     shift
 
-    if [[ ! -f "$script_path" ||
-          ! -r "$script_path" ||
-          -L "$script_path" ]]; then
-        ssh_error \
-            "Remote script must be a readable regular file and not a symlink: ${script_path}"
+    if (( $# < script_count )); then
+        ssh_error "The remote script bundle is incomplete."
         return 1
     fi
+
+    while (( script_index < script_count )); do
+        script_path="$1"
+
+        if [[ ! -f "$script_path" ||
+              ! -r "$script_path" ||
+              -L "$script_path" ]]; then
+            ssh_error \
+                "Remote script must be a readable regular file and not a symlink: ${script_path}"
+            return 1
+        fi
+
+        script_paths+=("$script_path")
+        script_index=$(( script_index + 1 ))
+        shift
+    done
 
     if [[ -z "$SAFEDEPLOY_SSH_CONTROL_DIR" ]]; then
         ssh_error "SSH has not been initialized."
@@ -235,7 +256,11 @@ ssh_run_script() {
 
     {
         emit_remote_argument_decoder
-        cat -- "$script_path"
+
+        for script_path in "${script_paths[@]}"; do
+            cat -- "$script_path" || exit 1
+            printf '\n' || exit 1
+        done
     } |
         ssh \
             "${SAFEDEPLOY_SSH_OPTIONS[@]}" \
@@ -244,6 +269,30 @@ ssh_run_script() {
         pipeline_status=$?
 
     return "$pipeline_status"
+}
+
+ssh_run_script() {
+    local script_path="$1"
+
+    shift
+
+    ssh_run_script_bundle \
+        1 \
+        "$script_path" \
+        "$@"
+}
+
+ssh_run_worker() {
+    local lock_library="${SAFEDEPLOY_ROOT}/lib/lock.sh"
+    local state_library="${SAFEDEPLOY_ROOT}/lib/state.sh"
+    local worker_script="${SAFEDEPLOY_ROOT}/remote/worker.sh"
+
+    ssh_run_script_bundle \
+        3 \
+        "$lock_library" \
+        "$state_library" \
+        "$worker_script" \
+        "$@"
 }
 
 ssh_check_connectivity() {

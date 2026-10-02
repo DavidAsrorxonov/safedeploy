@@ -307,6 +307,9 @@ main() {
     local logging_status=0
     local ssh_init_status=0
     local ssh_check_status=0
+    local worker_status=0
+    local cleanup_status=0
+    local run_mutating_worker=false
 
     parse_cli "$@" || parse_status=$?
 
@@ -351,6 +354,8 @@ main() {
     initialize_ssh || ssh_init_status=$?
 
     if (( ssh_init_status != 0 )); then
+        cleanup_ssh >/dev/null 2>&1 || true
+
         log_event \
             "ERROR" \
             "$CLI_OPERATION" \
@@ -363,24 +368,66 @@ main() {
         return 1
     fi
 
+    trap 'cleanup_ssh >/dev/null 2>&1 || true' EXIT
+
     ssh_check_connectivity || ssh_check_status=$?
 
-    if ! cleanup_ssh; then
+    if [[ "$CLI_OPERATION" == "rollback" ||
+          ( "$CLI_OPERATION" == "deploy" &&
+            "$CLI_DRY_RUN" == false ) ]]; then
+        run_mutating_worker=true
+    fi
+
+    if (( ssh_check_status == 0 )) &&
+       [[ "$run_mutating_worker" == true ]]; then
+        ssh_run_worker \
+            "$REMOTE_PATH" \
+            "$SAFEDEPLOY_ATTEMPT_ID" \
+            "$CLI_OPERATION" \
+            "$CONFIG_ENVIRONMENT" \
+            "$SAFEDEPLOY_ACTOR" \
+            "$SAFEDEPLOY_CONTROLLER_ID" \
+            >/dev/null || worker_status=$?
+
+        if (( worker_status == 0 )); then
+            log_event \
+                "INFO" \
+                "$CLI_OPERATION" \
+                "remote-lock" \
+                "success" \
+                0 \
+                "Remote worker acquired and released the application lock." ||
+                worker_status=1
+        else
+            log_event \
+                "ERROR" \
+                "$CLI_OPERATION" \
+                "remote-lock" \
+                "failed" \
+                "$worker_status" \
+                "Remote worker failed to complete the lock lifecycle." ||
+                true
+        fi
+    fi
+
+    cleanup_ssh || cleanup_status=$?
+    trap - EXIT
+
+    if (( cleanup_status != 0 )); then
         log_event \
             "WARN" \
             "$CLI_OPERATION" \
             "ssh-cleanup" \
             "failed" \
-            1 \
+            "$cleanup_status" \
             "Unable to remove every local SSH control artifact." ||
             true
     fi
-   
-    if (( ssh_check_status != 0 )); then
+
+    if (( ssh_check_status != 0 || worker_status != 0 )); then
         return 1
     fi
-
-
+   
     log_event \
         "WARN" \
         "$CLI_OPERATION" \

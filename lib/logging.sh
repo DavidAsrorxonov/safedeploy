@@ -6,6 +6,7 @@ SAFEDEPLOY_ACTOR=""
 SAFEDEPLOY_RELEASE_ID=""
 SAFEDEPLOY_COMMIT_SHA=""
 SAFEDEPLOY_LOG_SECRETS=()
+SAFEDEPLOY_CONTROLLER_ID=""
 
 logging_error() {
     local message="$1"
@@ -37,6 +38,24 @@ resolve_actor() {
     fi
 
     printf '%s\n' "unknown"
+}
+
+resolve_controller_id() {
+    local host_name="unknown"
+
+    if command -v hostname >/dev/null 2>&1; then
+        host_name="$(hostname -s 2>/dev/null)" || host_name="unknown"
+
+        if [[ -z "$host_name" ]]; then
+            host_name="unknown"
+        fi
+
+    fi
+
+    printf '%s@%s:%s\n' \
+        "$SAFEDEPLOY_ACTOR" \
+        "$host_name" \
+        "$$"
 }
 
 register_log_secret() {
@@ -124,6 +143,10 @@ initialize_logging() {
 
     SAFEDEPLOY_ATTEMPT_ID="$(create_attempt_id)" || return 1
     SAFEDEPLOY_ACTOR="$(resolve_actor)" || SAFEDEPLOY_ACTOR="unknown"
+
+    SAFEDEPLOY_CONTROLLER_ID="$(
+        resolve_controller_id
+    )" || SAFEDEPLOY_CONTROLLER_ID="${SAFEDEPLOY_ACTOR}:$$"
 
     SAFEDEPLOY_LOG_FILE="${log_directory}/deploy-${environment_name}-${SAFEDEPLOY_ATTEMPT_ID}.log"
 

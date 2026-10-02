@@ -32,7 +32,8 @@ bash -n \
     config/test.env \
     lib/*.sh \
     remote/*.sh \
-    tests/run.sh
+    tests/run.sh \
+    tests/integration/*.sh
 
 
 shellcheck -x \
@@ -40,6 +41,7 @@ shellcheck -x \
     rollback.sh \
     status.sh \
     remote/*.sh \
-    tests/run.sh
+    tests/run.sh \
+    tests/integration/*.sh
 
 bats tests/bats

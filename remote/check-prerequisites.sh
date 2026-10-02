@@ -18,6 +18,10 @@ main() {
         mktemp
         mv
         timeout
+        awk
+        cat
+        date
+        rm
     )
 
     if (( $# != 1 )); then
